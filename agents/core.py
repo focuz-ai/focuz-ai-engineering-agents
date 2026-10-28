@@ -52,13 +52,20 @@ class Workflow:
 
     def approve(self, request_id, principal, expected_digest):
         if 'approver' not in principal.roles: raise PermissionError('No puede aprobar')
-        with self.db:
+        # Bloquear antes de leer impide que otra ejecución complete entre
+        # la validación y el UPDATE, devolviendo una solicitud DONE a APPROVED.
+        self.db.execute('BEGIN IMMEDIATE')
+        try:
             row = self._row(request_id,principal)
             if row[1] == principal.user: raise PermissionError('Requiere otro aprobador')
             if row[3] != expected_digest: raise ValueError('Aprobación no coincide con payload')
             if row[4] not in ('PENDING','APPROVED'): raise ValueError('Estado no aprobable')
             self.db.execute('UPDATE requests SET state=?,approver=? WHERE id=?',
                             ('APPROVED',principal.user,request_id))
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
 
     def execute(self, request_id, principal):
         if 'executor' not in principal.roles: raise PermissionError('No puede ejecutar')

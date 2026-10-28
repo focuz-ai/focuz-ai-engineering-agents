@@ -17,6 +17,8 @@ tickets externos, no ejecuta shell y no llama modelos reales.
 PENDING → APPROVED → DONE. Un digest vincula la aprobación al payload. Roles y
 tenant se comprueban en cada operación. Un ID no puede cambiar de tenant, autor
 o contenido. La transacción que crea el ticket también persiste el estado.
+La aprobación bloquea la escritura antes de leer el estado, de modo que una
+aprobación concurrente no puede devolver una solicitud DONE a APPROVED.
 Los parámetros SQL se enlazan, nunca se interpolan. Las pruebas verifican la
 reanudación después de cerrar y abrir una base persistente.
 

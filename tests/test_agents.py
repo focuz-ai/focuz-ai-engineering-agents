@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import sqlite3
 import unittest
 from agents.core import Workflow, Principal
 
@@ -31,6 +32,44 @@ class AgentTests(unittest.TestCase):
             self.w.approve('r1',Principal('A','ana',('approver',)),self.p['digest'])
     def test_digest_bound(self):
         with self.assertRaises(ValueError): self.w.approve('r1',self.approver,'different')
+        self.assertFalse(self.w.db.in_transaction)
+        self.w.approve('r1',self.approver,self.p['digest'])
+    def test_approval_locks_before_read_and_cannot_revive_done(self):
+        # Intercalar dos conexiones de forma determinista, sin sleeps ni carreras
+        # de scheduling: el ejecutor intenta escribir justo tras la lectura.
+        with TemporaryDirectory(dir=Path(__file__).resolve().parent) as d:
+            path = str(Path(d)/'approval-race.sqlite')
+            approver = Workflow(path)
+            executor = Workflow(path)
+            try:
+                proposal = approver.propose('race',self.author,
+                                           'create_local_ticket','Concurrente')
+                approver.approve('race',self.approver,proposal['digest'])
+                executor.db.execute('PRAGMA busy_timeout=0')
+                original_row = approver._row
+                locked_reads = []
+                def interleaved_read(request_id, principal):
+                    row = original_row(request_id, principal)
+                    locked_reads.append(approver.db.in_transaction)
+                    with self.assertRaises(sqlite3.OperationalError) as caught:
+                        executor.execute('race',self.executor)
+                    self.assertIn('locked',str(caught.exception).lower())
+                    return row
+                approver._row = interleaved_read
+                approver.approve('race',self.approver,proposal['digest'])
+                approver._row = original_row
+                self.assertEqual(locked_reads,[True])
+                result = executor.execute('race',self.executor)
+                with self.assertRaises(ValueError):
+                    approver.approve('race',self.approver,proposal['digest'])
+                state = approver.db.execute(
+                    'SELECT state FROM requests WHERE id=?',('race',)).fetchone()[0]
+                self.assertEqual(state,'DONE')
+                self.assertEqual(result,executor.execute('race',self.executor))
+                self.assertEqual(executor.ticket_count(),1)
+            finally:
+                approver.close()
+                executor.close()
     def test_payload_cannot_change_on_retry(self):
         with self.assertRaises(ValueError):
             self.w.propose('r1',self.author,'create_local_ticket','Otro resumen')
