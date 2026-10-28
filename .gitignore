@@ -1,0 +1,14 @@
+__pycache__/
+desktop.ini
+Thumbs.db
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+*.sqlite*
+coverage.xml
+.pytest_cache/
+build/
+dist/
+*.egg-info/
