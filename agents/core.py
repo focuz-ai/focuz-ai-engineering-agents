@@ -33,16 +33,25 @@ class Workflow:
             raise ValueError('ID o resumen inválido')
         payload = json.dumps({'tool':tool,'summary':summary},sort_keys=True,ensure_ascii=False)
         digest = sha256(payload.encode()).hexdigest()
-        with self.db:
+        # El context manager no inicia una transacción al hacer SELECT.
+        # Bloquear antes de leer hace idempotentes también propuestas concurrentes.
+        self.db.execute('BEGIN IMMEDIATE')
+        try:
             row = self.db.execute('SELECT tenant,author,digest,state FROM requests WHERE id=?',
                                   (request_id,)).fetchone()
             if row:
                 if row[:3] != (principal.tenant,principal.user,digest):
                     raise ValueError('ID reutilizado con otro ámbito o payload')
-                return {'request_id':request_id,'digest':digest,'state':row[3]}
-            self.db.execute('INSERT INTO requests VALUES (?,?,?,?,?,?,NULL,NULL)',
-              (request_id,principal.tenant,principal.user,payload,digest,'PENDING'))
-        return {'request_id':request_id,'digest':digest,'state':'PENDING'}
+                state = row[3]
+            else:
+                self.db.execute('INSERT INTO requests VALUES (?,?,?,?,?,?,NULL,NULL)',
+                  (request_id,principal.tenant,principal.user,payload,digest,'PENDING'))
+                state = 'PENDING'
+            self.db.commit()
+            return {'request_id':request_id,'digest':digest,'state':state}
+        except Exception:
+            self.db.rollback()
+            raise
 
     def _row(self, request_id, principal):
         row = self.db.execute('SELECT tenant,author,payload,digest,state,approver,result FROM requests WHERE id=?',

@@ -17,6 +17,11 @@ tickets externos, no ejecuta shell y no llama modelos reales.
 PENDING → APPROVED → DONE. Un digest vincula la aprobación al payload. Roles y
 tenant se comprueban en cada operación. Un ID no puede cambiar de tenant, autor
 o contenido. La transacción que crea el ticket también persiste el estado.
+La propuesta inicia `BEGIN IMMEDIATE` antes de consultar si existe el ID. Dos
+conexiones que proponen el mismo ID, tenant, autor y payload reciben la misma
+propuesta; un cambio de ámbito, autor o payload se rechaza sin modificarla.
+La lectura, validación e inserción se confirman o revierten juntas. No se espera
+una llamada al modelo ni una aprobación humana dentro de esa transacción.
 La aprobación bloquea la escritura antes de leer el estado, de modo que una
 aprobación concurrente no puede devolver una solicitud DONE a APPROVED.
 Los parámetros SQL se enlazan, nunca se interpolan. Las pruebas verifican la
@@ -28,6 +33,15 @@ Para añadir function calling conserva `propose` como frontera de validación y
 mantén `approve` fuera del alcance de herramientas del modelo. No expongas roles
 construidos por el cliente en un servicio: aquí se crean explícitamente por ser
 una demostración de escritorio con identidades ficticias.
+
+## Corrección 1.0.1
+
+La corrección de SEC-01 elimina la carrera entre el SELECT y el INSERT de
+`propose`. Las regresiones coordinan dos conexiones con eventos, sin sleeps:
+comprueban reintentos idénticos y rechazan colisiones de tenant, autor o payload.
+También verifican que quede una sola solicitud y ninguna transacción abierta.
+La espera de bloqueo de SQLite sigue siendo finita; si otro proceso retiene
+el bloqueo hasta agotar el timeout de conexión, se devuelve el error de SQLite.
 
 ## Laboratorio
 
