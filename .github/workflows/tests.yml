@@ -15,6 +15,10 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install --no-deps .
       - run: python -m unittest discover -s tests -v
-      - run: python -m agents
+      - run: |
+          python -m agents
+          python -m agents.github_tools
+          python -m agents.issue_tests
+          python -m agents.estimation
         working-directory: ${{ runner.temp }}
       - run: python -m compileall -q .

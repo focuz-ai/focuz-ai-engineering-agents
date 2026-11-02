@@ -4,11 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "focuz-agents-lab"
-version = "1.0.1"
+version = "1.1.0"
 description = "Workflow persistente con aprobación e idempotencia local"
 requires-python = ">=3.11"
 authors = [{name = "Focuz"}]
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/focuz-ai/focuz-ai-engineering-agents"
 
 [tool.setuptools.packages.find]
 include = ["agents*"]
