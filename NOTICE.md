@@ -9,7 +9,7 @@ https://www.lidr.co/ai-engineering/
 Los datos, empresas, usuarios, políticas y tickets son ficticios.
 Estos ejemplos no acreditan una integración desplegada ni una certificación de LIDR.
 No se incluyen claves, datos de clientes ni permisos de uso de código ajeno.
-Repositorio privado de Focuz; no se concede una licencia pública implícita.
+Repositorio público de Focuz; no se concede una licencia pública implícita.
 
 Edición 1.1.0: simulaciones originales de herramientas GitHub y estimación con
 dos revisiones, inspiradas en los objetivos del workshop y demos públicos de
